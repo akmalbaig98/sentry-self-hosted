@@ -12,8 +12,8 @@ if [[ "${SETUP_JS_SDK_ASSETS:-}" == "1" ]]; then
     $dcr --no-deps nginx rm -rf /var/www/js-sdk/*
   fi
 
-  jq="$CONTAINER_ENGINE run --rm -i ghcr.io/jqlang/jq"
-
+  # jq="$CONTAINER_ENGINE run --rm -i ghcr.io/jqlang/jq"
+  jq="jq"
   loader_registry=$($dcr --no-deps --rm -T web python3 -m json.tool /usr/src/sentry/src/sentry/loader/_registry.json)
   # The `loader_registry` should start with "Updating certificates...", we want to delete that and the subsequent ca-certificates related lines.
   # We want to remove everything before the first '{'.

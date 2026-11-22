@@ -4,7 +4,8 @@ if [ -z "${SENTRY_DSN:-}" ]; then
   export SENTRY_DSN='https://19555c489ded4769978daae92f2346ca@self-hosted.getsentry.net/3'
 fi
 
-jq="$CONTAINER_ENGINE run --rm -i ghcr.io/jqlang/jq"
+# jq=""$CONTAINER_ENGINE run --rm -i ghcr.io/jqlang/jq""
+jq="jq"
 sentry_cli="$CONTAINER_ENGINE run --rm -v /tmp:/work -e SENTRY_DSN=$SENTRY_DSN getsentry/sentry-cli"
 DEFAULT_BREADCRUMB_LINE_LIMIT=200
 
