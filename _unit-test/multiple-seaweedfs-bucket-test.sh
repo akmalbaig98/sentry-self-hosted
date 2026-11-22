@@ -6,7 +6,7 @@ source install/create-docker-volumes.sh
 
 start_service_and_wait_ready seaweedfs
 
-$dcx seaweedfs apk add --no-cache s3cmd
+# $dcx seaweedfs apk add --no-cache s3cmd
 s3cmd="$dc exec seaweedfs s3cmd"
 
 # Create multiple buckets for testing

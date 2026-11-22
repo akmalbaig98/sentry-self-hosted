@@ -1,7 +1,7 @@
 x-restart-policy: &restart_policy
   restart: unless-stopped
 x-pull-policy: &pull_policy
-  pull_policy: never
+  pull_policy: if_not_present
 x-depends_on-healthy: &depends_on-healthy
   condition: service_healthy
 x-depends_on-default: &depends_on-default
@@ -68,7 +68,7 @@ x-sentry-defaults: &sentry_defaults
       <<: *depends_on-default
     symbolicator:
       <<: *depends_on-default
-  entrypoint: "/etc/sentry/entrypoint.sh"
+  # entrypoint: "/etc/sentry/entrypoint.sh"
   command: ["run", "web"]
   environment:
     PYTHONUSERBASE: "/data/custom-packages"
@@ -94,7 +94,7 @@ x-sentry-defaults: &sentry_defaults
     LAUNCHPAD_RPC_SHARED_SECRET:
     SENTRY_STATSD_ADDR: "${STATSD_ADDR:-}"
   volumes:
-    - "sentry-data:/data"
+    - "./volumes/sentry-data:/data"
     - "./sentry:/etc/sentry"
     - "./geoip:/geoip:ro"
     - "./certificates:/usr/local/share/ca-certificates:ro"
@@ -126,8 +126,8 @@ services:
     <<: *restart_policy
     image: registry.gitlab.com/egos-tech/smtp
     volumes:
-      - "sentry-smtp:/var/spool/exim4"
-      - "sentry-smtp-log:/var/log/exim4"
+      - "./volumes/sentry-smtp:/var/spool/exim4"
+      - "./volumes/sentry-smtp-log:/var/log/exim4"
     environment:
       MAILNAME: ${SENTRY_MAIL_HOST:-}
       # Refer to https://develop.sentry.dev/self-hosted/configuration/email/#as-aws-ses-relay
@@ -149,7 +149,7 @@ services:
       <<: *healthcheck_defaults
       test: valkey-cli ping | grep PONG
     volumes:
-      - "sentry-redis:/data"
+      - "./volumes/sentry-redis:/data"
       - type: bind
         read_only: true
         source: ./redis.conf
@@ -171,7 +171,7 @@ services:
     environment:
       POSTGRES_HOST_AUTH_METHOD: "trust"
     volumes:
-      - "sentry-postgres:/var/lib/postgresql"
+      - "./volumes/sentry-postgres:/var/lib/postgresql"
     shm_size: 256m
   pgbouncer:
     <<: *restart_policy
@@ -224,9 +224,9 @@ services:
         soft: 100000
         hard: 100000
     volumes:
-      - "sentry-kafka:/var/lib/kafka/data"
-      - "sentry-kafka-log:/var/lib/kafka/log"
-      - "sentry-secrets:/etc/kafka/secrets"
+      - "./volumes/sentry-kafka:/var/lib/kafka/data"
+      - "./volumes/sentry-kafka-log:/var/lib/kafka/log"
+      - "./volumes/sentry-secrets:/etc/kafka/secrets"
     healthcheck:
       <<: *healthcheck_defaults
       test: ["CMD-SHELL", "nc -z localhost 9092"]
@@ -235,18 +235,18 @@ services:
       retries: 30
   clickhouse:
     <<: [*restart_policy, *pull_policy]
-    image: clickhouse-self-hosted-local
-    build:
-      context: ./clickhouse
-      args:
-        BASE_IMAGE: "altinity/clickhouse-server:25.8.28.10001.altinitystable"
+    image: altinity/clickhouse-server:25.8.28.10001.altinitystable
+    # build:
+    #   context: ./clickhouse
+    #   args:
+    #     BASE_IMAGE: "altinity/clickhouse-server:25.8.28.10001.altinitystable"
     ulimits:
       nofile:
         soft: 262144
         hard: 262144
     volumes:
-      - "sentry-clickhouse:/var/lib/clickhouse"
-      - "sentry-clickhouse-log:/var/log/clickhouse-server"
+      - "./volumes/sentry-clickhouse/clickhouse:/var/lib/clickhouse"
+      - "./volumes/sentry-clickhouse/clickhouse-log:/var/log/clickhouse-server"
       - type: "bind"
         read_only: true
         source: "./clickhouse/config.xml"
@@ -273,7 +273,7 @@ services:
       retries: 30
   seaweedfs:
     <<: *restart_policy
-    image: "chrislusf/seaweedfs:4.40_large_disk@sha256:d07aa1dae03c687e0737b86130ded1b18474211a09e85d737fbe5508b8805139"
+    image: "rajputdee/seaweedfs:4.17_large_disk_s3cmd"
     entrypoint: "weed"
     command: >-
         mini
@@ -291,7 +291,7 @@ services:
       AWS_ACCESS_KEY_ID: sentry
       AWS_SECRET_ACCESS_KEY: sentry
     volumes:
-      - "sentry-seaweedfs:/data"
+      - "./volumes/sentry-seaweedfs:/data"
     healthcheck:
       test: [
           "CMD-SHELL",
@@ -436,7 +436,7 @@ services:
       SYMBOLICATOR_STATSD_ADDR: ${STATSD_ADDR:-127.0.0.1:8125}
     command: run -c /etc/symbolicator/config.yml
     volumes:
-      - "sentry-symbolicator:/data"
+      - "./volumes/sentry-symbolicator:/data"
       - type: bind
         read_only: true
         source: ./symbolicator
@@ -451,7 +451,7 @@ services:
       SYMBOLICATOR_STATSD_ADDR: ${STATSD_ADDR:-127.0.0.1:8125}
     command: "cleanup -c /etc/symbolicator/config.yml --repeat 1h"
     volumes:
-      - "sentry-symbolicator:/data"
+      - "./volumes/sentry-symbolicator:/data"
       - type: bind
         read_only: true
         source: ./symbolicator
@@ -580,8 +580,8 @@ services:
         read_only: true
         source: ./nginx.conf
         target: /etc/nginx/nginx.conf
-      - sentry-nginx-cache:/var/cache/nginx
-      - sentry-nginx-www:/var/www
+      - ./volumes/sentry-nginx-cache:/var/cache/nginx
+      - ./volumes/sentry-nginx-www:/var/www
     healthcheck:
       <<: *healthcheck_defaults
       test:
@@ -629,7 +629,7 @@ services:
       TASKBROKER_STATSD_ADDR: ${STATSD_ADDR:-127.0.0.1:8125}
     command: /opt/taskbroker -c /etc/taskbroker/config.yml
     volumes:
-      - sentry-taskbroker:/opt/sqlite
+      - ./volumes/sentry-taskbroker:/opt/sqlite
       - type: bind
         read_only: true
         source: ./taskbroker
@@ -679,7 +679,7 @@ services:
       AWS_SECRET_KEY: "sentry"
       SENTRY_SNUBA_HOST: "http://snuba-api:1218"
     volumes:
-      - sentry-vroom:/var/vroom/sentry-profiles
+      - ./volumes/sentry-vroom:/var/vroom/sentry-profiles
     healthcheck:
       <<: *healthcheck_defaults
       test: ["CMD", "/bin/vroom", "healthcheck"]
@@ -712,39 +712,39 @@ services:
     profiles:
       - feature-complete
 
-volumes:
-  # These store application data that should persist across restarts.
-  sentry-data:
-    external: true
-  sentry-postgres:
-    external: true
-  sentry-redis:
-    external: true
-  sentry-kafka:
-    external: true
-  sentry-clickhouse:
-    external: true
-  sentry-seaweedfs:
-    external: true
-  # The volume stores cached version of debug symbols, source maps etc. Upon
-  # removal symbolicator will re-download them.
-  sentry-symbolicator:
-  # This volume stores JS SDK assets and the data inside this volume should
-  # be cleaned periodically on upgrades.
-  sentry-nginx-www:
-  # This volume stores profiles and should be persisted.
-  # Not being external will still persist data across restarts.
-  # It won't persist if someone does a docker compose down -v.
-  sentry-vroom:
-  # This volume stores task data that is inflight
-  # It should persist across restarts. If this volume is
-  # deleted, up to ~2048 tasks will be lost.
-  sentry-taskbroker:
-  # These store ephemeral data that needn't persist across restarts.
-  # That said, volumes will be persisted across restarts until they are deleted.
-  sentry-secrets:
-  sentry-smtp:
-  sentry-nginx-cache:
-  sentry-kafka-log:
-  sentry-smtp-log:
-  sentry-clickhouse-log:
+# volumes:
+#   # These store application data that should persist across restarts.
+#   sentry-data:
+#     external: true
+#   sentry-postgres:
+#     external: true
+#   sentry-redis:
+#     external: true
+#   sentry-kafka:
+#     external: true
+#   sentry-clickhouse:
+#     external: true
+#   sentry-seaweedfs:
+#     external: true
+#   # The volume stores cached version of debug symbols, source maps etc. Upon
+#   # removal symbolicator will re-download them.
+#   sentry-symbolicator:
+#   # This volume stores JS SDK assets and the data inside this volume should
+#   # be cleaned periodically on upgrades.
+#   sentry-nginx-www:
+#   # This volume stores profiles and should be persisted.
+#   # Not being external will still persist data across restarts.
+#   # It won't persist if someone does a docker compose down -v.
+#   sentry-vroom:
+#   # This volume stores task data that is inflight
+#   # It should persist across restarts. If this volume is
+#   # deleted, up to ~2048 tasks will be lost.
+#   sentry-taskbroker:
+#   # These store ephemeral data that needn't persist across restarts.
+#   # That said, volumes will be persisted across restarts until they are deleted.
+#   sentry-secrets:
+#   sentry-smtp:
+#   sentry-nginx-cache:
+#   sentry-kafka-log:
+#   sentry-smtp-log:
+#   sentry-clickhouse-log:

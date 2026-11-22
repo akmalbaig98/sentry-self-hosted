@@ -13,7 +13,7 @@ if [[ "$COMPOSE_PROFILES" == "feature-complete" ]]; then
   echo "${_group}Bootstrapping seaweedfs (profiles)..."
 
   start_service_and_wait_ready seaweedfs
-  $dcx seaweedfs apk add --no-cache s3cmd
+  # $dcx seaweedfs apk add --no-cache s3cmd
   s3cmd="$dc exec seaweedfs s3cmd"
 
   bucket_list=$($s3cmd --access_key=sentry --secret_key=sentry --no-ssl --region=us-east-1 --host=localhost:8333 --host-bucket='localhost:8333/%(bucket)' ls)
